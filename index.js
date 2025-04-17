@@ -68,6 +68,8 @@ export default app;
 
 // Iniciar o servidor
 const PORT = process.env.PORT || 3000;
+const HOST = 'https://chatbotservidor-1.onrender.com';
+
 app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
+    console.log(`Servidor rodando em ${HOST}`);
 }); 
