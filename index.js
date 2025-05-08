@@ -15,9 +15,28 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Create Express app
 const app = express();
+const tools = [
+    {
+      functionDeclarations: [
+        {
+          name: "getCurrentTime",
+          description: "Obtém a data e hora atuais.",
+          parameters: { type: "object", properties: {} } // Sem parâmetros necessários
+        },
+        // Adicione outras declarações de função aqui depois (se desejar adicionar mais funções no futuro)
+      ]
+    }
+  ];
+  
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Função para obter a hora atual
+function getCurrentTime() {
+  console.log("Executando getCurrentTime");
+  return { currentTime: new Date().toLocaleString() }; // Retorna um objeto simples
+}
 
 // System instruction that defines the chatbot's personality
 const SYSTEM_INSTRUCTION = `Você é um assistente amigável e prestativo chamado GeminiBot. 
@@ -26,13 +45,21 @@ Sua personalidade é:
 - Respostas concisas e diretas
 - Usa linguagem simples e acessível
 - Mantém um tom profissional mas descontraído
-- Sempre tenta ajudar da melhor forma possível`;
+- Sempre tenta ajudar da melhor forma possível
+- Quando perguntado sobre data e hora, fornece a informação atual de forma clara e amigável`;
 
 async function generateResponse(prompt) {
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({
+             model: "gemini-1.5-flash",
+            tools: tools });
+        
+        // Adiciona a data e hora atual ao contexto
+        const timeInfo = getCurrentTime();
+        const enhancedPrompt = `${prompt}\n\nData e hora atual: ${timeInfo.currentTime}`;
+        
         const result = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            contents: [{ role: "user", parts: [{ text: enhancedPrompt }] }],
             generationConfig: {
                 temperature: 0.7,
                 maxOutputTokens: 1024,
