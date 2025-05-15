@@ -1,6 +1,49 @@
-# GeminiBot - Chatbot Web com Google AI
+# Chatbot com Gemini API
 
-Um chatbot web interativo construído com a API Gemini do Google AI. O bot possui uma interface amigável e moderna, permitindo conversas naturais e interativas.
+Este é um chatbot web que utiliza a API Gemini do Google para processar mensagens e executar funções específicas.
+
+## Funcionalidades
+
+O chatbot pode:
+- Responder perguntas gerais usando a API Gemini
+- Informar a data e hora atual
+- Fornecer informações sobre o clima de qualquer cidade
+
+## Configuração
+
+1. Clone o repositório
+2. Instale as dependências:
+   ```bash
+   npm install
+   ```
+3. Crie um arquivo `.env` na raiz do projeto com as seguintes variáveis:
+   ```
+   GEMINI_API_KEY=sua_chave_api_gemini
+   OPENWEATHER_API_KEY=sua_chave_api_openweather
+   ```
+
+## Como Usar
+
+1. Inicie o servidor:
+   ```bash
+   node index.js
+   ```
+2. Acesse `http://localhost:3000` no seu navegador
+
+## Exemplos de Uso
+
+Você pode fazer perguntas como:
+- "Que horas são?"
+- "Qual o tempo em São Paulo?"
+- "Me diga a previsão do tempo para Curitiba"
+
+## Tecnologias Utilizadas
+
+- Node.js
+- Express
+- Google Generative AI (Gemini)
+- OpenWeather API
+- Axios
 
 ## Características do Bot
 
@@ -8,42 +51,6 @@ Um chatbot web interativo construído com a API Gemini do Google AI. O bot possu
 - **Respostas**: Concisas e diretas
 - **Linguagem**: Simples e acessível
 - **Tom**: Profissional mas descontraído
-
-## Tecnologias Utilizadas
-
-- Frontend: HTML, CSS, JavaScript
-- Backend: Node.js, Express
-- API: Google Gemini AI
-- Deploy: Vercel (frontend) e Render (backend)
-
-## Como Executar Localmente
-
-1. Clone o repositório:
-```bash
-git clone https://github.com/seu-usuario/gemini-chatbot.git
-cd gemini-chatbot
-```
-
-2. Instale as dependências:
-```bash
-npm install
-```
-
-3. Configure a API Key:
-- Crie um arquivo `.env` na raiz do projeto
-- Adicione sua chave da API Gemini:
-```
-GEMINI_API_KEY=sua-chave-aqui
-```
-
-4. Inicie o servidor:
-```bash
-npm start
-```
-
-5. Acesse o chatbot:
-- Abra seu navegador
-- Acesse: http://localhost:3000
 
 ## Estrutura do Projeto
 
@@ -57,15 +64,6 @@ gemini-chatbot/
 ├── package.json     # Dependências
 └── .env            # Configurações (não versionado)
 ```
-
-## Funcionalidades
-
-- Interface web amigável
-- Conversas em tempo real
-- Respostas contextuais
-- Design responsivo
-- Histórico de mensagens
-- Indicador de digitação
 
 ## Links
 

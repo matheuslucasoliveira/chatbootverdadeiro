@@ -3,6 +3,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import axios from 'axios';
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -21,13 +22,25 @@ const tools = [
         {
           name: "getCurrentTime",
           description: "Obtém a data e hora atuais.",
-          parameters: { type: "object", properties: {} } // Sem parâmetros necessários
+          parameters: { type: "object", properties: {} }
         },
-        // Adicione outras declarações de função aqui depois (se desejar adicionar mais funções no futuro)
+        {
+          name: "getWeather",
+          description: "Obtém a previsão do tempo atual para uma cidade específica.",
+          parameters: {
+            type: "object",
+            properties: {
+              location: {
+                type: "string",
+                description: "A cidade para a qual obter a previsão do tempo (ex: 'Curitiba, BR')."
+              }
+            },
+            required: ["location"]
+          }
+        }
       ]
     }
-  ];
-  
+];
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -35,8 +48,36 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Função para obter a hora atual
 function getCurrentTime() {
   console.log("Executando getCurrentTime");
-  return { currentTime: new Date().toLocaleString() }; // Retorna um objeto simples
+  return { currentTime: new Date().toLocaleString() };
 }
+
+// Função para obter o clima
+async function getWeather(args) {
+  console.log("Executando getWeather com args:", args);
+  const location = args.location;
+  const apiKey = process.env.OPENWEATHER_API_KEY;
+  if (!apiKey) {
+    throw new Error("Chave da API OpenWeatherMap não configurada.");
+  }
+  const url = `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${apiKey}&units=metric&lang=pt_br`;
+  try {
+    const response = await axios.get(url);
+    return {
+      location: response.data.name,
+      temperature: response.data.main.temp,
+      description: response.data.weather[0].description
+    };
+  } catch (error) {
+    console.error("Erro ao chamar OpenWeatherMap:", error.response?.data || error.message);
+    return { error: error.response?.data?.message || "Não foi possível obter o tempo." };
+  }
+}
+
+// Mapeamento de funções disponíveis
+const availableFunctions = {
+  getCurrentTime: getCurrentTime,
+  getWeather: getWeather
+};
 
 // System instruction that defines the chatbot's personality
 const SYSTEM_INSTRUCTION = `Você é um assistente amigável e prestativo chamado GeminiBot. 
@@ -51,15 +92,12 @@ Sua personalidade é:
 async function generateResponse(prompt) {
     try {
         const model = genAI.getGenerativeModel({
-             model: "gemini-1.5-flash",
-            tools: tools });
-        
-        // Adiciona a data e hora atual ao contexto
-        const timeInfo = getCurrentTime();
-        const enhancedPrompt = `${prompt}\n\nData e hora atual: ${timeInfo.currentTime}`;
+            model: "gemini-1.5-flash",
+            tools: tools
+        });
         
         const result = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: enhancedPrompt }] }],
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
             generationConfig: {
                 temperature: 0.7,
                 maxOutputTokens: 1024,
@@ -67,6 +105,35 @@ async function generateResponse(prompt) {
         });
         
         const response = await result.response;
+        
+        // Verifica se há chamadas de função
+        if (response.functionCalls && response.functionCalls().length > 0) {
+            const functionCall = response.functionCalls()[0];
+            const functionToCall = availableFunctions[functionCall.name];
+            const functionArgs = functionCall.args;
+            
+            // Executa a função
+            const functionResult = await functionToCall(functionArgs);
+            
+            // Envia o resultado de volta para o Gemini
+            const resultFromFunctionCall = await model.generateContent({
+                contents: [
+                    { role: "user", parts: [{ text: prompt }] },
+                    {
+                        role: "function",
+                        parts: [{
+                            functionResponse: {
+                                name: functionCall.name,
+                                response: functionResult
+                            }
+                        }]
+                    }
+                ]
+            });
+            
+            return resultFromFunctionCall.response.text();
+        }
+        
         return response.text();
     } catch (error) {
         console.error("Erro:", error);
@@ -95,8 +162,6 @@ export default app;
 
 // Iniciar o servidor
 const PORT = process.env.PORT || 3000;
-const HOST = 'https://chatbotservidor-1.onrender.com';
-
 app.listen(PORT, () => {
-    console.log(`Servidor rodando em ${HOST}`);
+    console.log(`Servidor rodando em http://localhost:${PORT}`);
 }); 
