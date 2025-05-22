@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import axios from 'axios';
+import cors from 'cors';
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -43,6 +44,7 @@ const tools = [
 ];
 
 app.use(express.json());
+app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Função para obter a hora atual
