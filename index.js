@@ -21,38 +21,38 @@ const __dirname = path.dirname(__filename);
 
 // Configuração do MongoDB
 const mongoUri = process.env.MONGO_URI;
-let db; // Variável para guardar a referência do banco
+let client = null;
+let db = null;
 
 // Função para conectar ao MongoDB
 async function connectDB() {
     if (db) return db; // Se já conectado, retorna a instância
+    
     if (!mongoUri) {
         console.error("MONGO_URI não definida no .env!");
-        process.exit(1); // Encerra se não tiver URI
+        throw new Error("MONGO_URI não definida");
     }
-    const client = new MongoClient(mongoUri, {
-        serverApi: {
-            version: ServerApiVersion.v1,
-            strict: true,
-            deprecationErrors: true,
-        }
-    });
+
     try {
-        await client.connect();
-        db = client.db("ifcodeLogsDB"); // Especifique o nome do seu banco de dados aqui
+        if (!client) {
+            client = new MongoClient(mongoUri, {
+                serverApi: {
+                    version: ServerApiVersion.v1,
+                    strict: true,
+                    deprecationErrors: true,
+                }
+            });
+            await client.connect();
+        }
+        
+        db = client.db("ifcodeLogsDB");
         console.log("Conectado ao MongoDB Atlas!");
         return db;
     } catch (err) {
         console.error("Falha ao conectar ao MongoDB:", err);
-        process.exit(1);
+        throw err;
     }
 }
-
-// Chamar a função para conectar quando o servidor inicia
-connectDB();
-
-// Configure the API key
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Create Express app
 const app = express();
@@ -84,6 +84,19 @@ const tools = [
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Middleware para conectar ao MongoDB antes de cada requisição
+app.use(async (req, res, next) => {
+    try {
+        if (!db) {
+            await connectDB();
+        }
+        next();
+    } catch (error) {
+        console.error("Erro ao conectar ao MongoDB:", error);
+        res.status(500).json({ error: "Erro de conexão com o banco de dados" });
+    }
+});
 
 // Função para obter a hora atual
 function getCurrentTime() {
@@ -200,20 +213,17 @@ app.get('/', (req, res) => {
 // Endpoint para obter informações do usuário
 app.get('/api/user-info', async (req, res) => {
     try {
-        // Tenta obter o IP do header x-forwarded-for (comum em proxies como o do Render)
-        // ou diretamente do req.socket.remoteAddress
         const ip = req.headers['x-forwarded-for']?.split(',').shift() || req.socket?.remoteAddress;
         
         if (!ip) {
             return res.status(400).json({ error: "Não foi possível determinar o endereço IP." });
         }
 
-        // Chamada para ip-api.com (não precisa de chave para o básico)
         const geoResponse = await axios.get(`http://ip-api.com/json/${ip}?fields=status,message,country,city,query`);
         
         if (geoResponse.data.status === 'success') {
             res.json({
-                ip: geoResponse.data.query, // O IP que foi consultado
+                ip: geoResponse.data.query,
                 city: geoResponse.data.city,
                 country: geoResponse.data.country,
             });
@@ -229,13 +239,8 @@ app.get('/api/user-info', async (req, res) => {
 
 // Endpoint para registrar conexão
 app.post('/api/log-connection', async (req, res) => {
-    if (!db) { // Garante que o DB está conectado
-        await connectDB();
-        if (!db) return res.status(500).json({ error: "Servidor não conectado ao banco de dados." });
-    }
-
     try {
-        const { ip, city, timestamp } = req.body; // Pega dados do corpo da requisição
+        const { ip, city, timestamp } = req.body;
 
         if (!ip || !city || !timestamp) {
             return res.status(400).json({ error: "Dados de log incompletos (IP, cidade, timestamp são obrigatórios)." });
@@ -244,11 +249,11 @@ app.post('/api/log-connection', async (req, res) => {
         const logEntry = {
             ipAddress: ip,
             city: city,
-            connectionTime: new Date(timestamp), // Converte string de timestamp para objeto Date
-            createdAt: new Date() // Data de criação do registro no DB
+            connectionTime: new Date(timestamp),
+            createdAt: new Date()
         };
 
-        const collection = db.collection("accessLogs"); // Nome da sua coleção no MongoDB
+        const collection = db.collection("accessLogs");
         const result = await collection.insertOne(logEntry);
 
         console.log('[Servidor] Log de conexão salvo:', result.insertedId);
@@ -260,11 +265,16 @@ app.post('/api/log-connection', async (req, res) => {
     }
 });
 
+// Configure the API key
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
 // Export the Express API
 export default app;
 
-// Iniciar o servidor
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Servidor rodando em http://localhost:${PORT}`);
-}); 
+// Iniciar o servidor apenas se não estiver rodando no Vercel
+if (process.env.NODE_ENV !== 'production') {
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+        console.log(`Servidor rodando em http://localhost:${PORT}`);
+    });
+} 
