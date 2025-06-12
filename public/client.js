@@ -71,4 +71,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Focus input on load
     userInput.focus();
-}); 
+});
+
+// Função para registrar conexão do usuário
+async function registrarConexaoUsuario() {
+    try {
+        // 1. Obter informações do usuário (IP, Cidade) do nosso backend
+        const userInfoResponse = await fetch(`${API_URL}/api/user-info`);
+        if (!userInfoResponse.ok) {
+            console.error("Falha ao obter user-info:", await userInfoResponse.text());
+            return; // Não prossegue se não conseguir IP/cidade
+        }
+        const userInfo = await userInfoResponse.json();
+
+        if (userInfo.error) {
+            console.error("Erro do servidor ao obter user-info:", userInfo.error);
+            return;
+        }
+        
+        // 2. Enviar log para o backend
+        const logData = {
+            ip: userInfo.ip,
+            city: userInfo.city,
+            timestamp: new Date().toISOString() // Padrão ISO 8601 para data/hora
+        };
+
+        const logResponse = await fetch(`${API_URL}/api/log-connection`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(logData),
+        });
+
+        if (!logResponse.ok) {
+            console.error("Falha ao enviar log de conexão:", await logResponse.text());
+        } else {
+            const result = await logResponse.json();
+            console.log("Log de conexão enviado:", result.message);
+        }
+
+    } catch (error) {
+        console.error("Erro ao registrar conexão do usuário:", error);
+    }
+}
+
+// Chamar esta função quando a página carregar
+window.addEventListener('load', registrarConexaoUsuario); 
